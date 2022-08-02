@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,7 +44,7 @@ func NewGrid(rowCount, colCount int) Grid {
 }
 
 func (g *Grid) CellId(row, col int) int {
-	return row*g.RowCount + col
+	return row*g.ColCount + col
 }
 
 // MazifyRec turns the grid into a maze using recursive backtracking.
@@ -175,7 +178,23 @@ func (g *Grid) Print() {
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-	grid := NewGrid(10, 10)
+	var rows int = 10
+	var cols int = 10
+	var err error
+	if len(os.Args) > 1 {
+		rows, err = strconv.Atoi(os.Args[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	if len(os.Args) > 2 {
+		cols, err = strconv.Atoi(os.Args[2])
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	grid := NewGrid(rows, cols)
 	// grid.MazifyRec(0, 0)
 	grid.MazifyKruskal()
 	grid.Print()
