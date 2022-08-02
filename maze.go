@@ -40,6 +40,11 @@ func NewGrid(rowCount, colCount int) Grid {
 	return Grid{rowCount, colCount, data}
 }
 
+func (g *Grid) CellId(row, col int) int {
+	return row*g.RowCount + col
+}
+
+// MazifyRec turns the grid into a maze using recursive backtracking.
 func (g *Grid) MazifyRec(row, col int) {
 	dirs := []Direction{N, E, S, W}
 	rand.Shuffle(len(dirs), func(i, j int) { dirs[i], dirs[j] = dirs[j], dirs[i] })
@@ -55,9 +60,86 @@ func (g *Grid) MazifyRec(row, col int) {
 			g.data[nextRow][nextCol] |= int(opposite[d])
 			g.MazifyRec(nextRow, nextCol)
 		}
+	}
+}
 
+// For Kruskal impl
+type edge struct {
+	row int
+	col int
+	d   Direction // other end of edge is in this direction
+}
+
+// MazifyKruskal turns grid into a maze using Kruskal's algorithm.
+func (g *Grid) MazifyKruskal() {
+	// 1. Generate all the possible edges in the grid graph.
+	//   - our representation of an edge will be (row, col, direction)
+	//     e.g. (3, 4, N) means an edge between cell (3, 4) and (2, 4), since
+	//     (2, 4) is North of (3, 4)
+	// 2. Shuffle the set of edges.
+	// 3. Execute Kruskal's algorithm on the set of shuffled edges.
+	//    - use a disjoint set union data structure
+	//    - each edge starts in a disjoint subset all by itself
+	//    - for each edge (u, v), if u and v are not in the same disjoint
+	//      subset
+	//      - update the grid allowing a path between u and v
+	//      - union the representative sets for u and v
+
+	dirs := []Direction{N, E, S, W}
+	var edges []edge
+	for row := 0; row < g.RowCount; row++ {
+		for col := 0; col < g.ColCount; col++ {
+			for _, d := range dirs {
+				// If (row, col, d) is a valid edge, add it to our list.
+				otherRow := row + rowOffset[d]
+				otherCol := col + colOffset[d]
+				if otherRow >= 0 && otherRow < g.RowCount &&
+					otherCol >= 0 && otherCol < g.ColCount {
+					edges = append(edges, edge{row, col, d})
+				}
+			}
+		}
 	}
 
+	rand.Shuffle(len(edges), func(i, j int) {
+		edges[i], edges[j] = edges[j], edges[i]
+	})
+
+	// Parent pointers for DSU; initially each elements points to itself
+	parent := make([]int, g.RowCount*g.ColCount)
+	for i := range parent {
+		parent[i] = i
+	}
+
+	var find func(int) int
+	find = func(id int) int {
+		if parent[id] == id {
+			return id
+		}
+		// path compression
+		parent[id] = find(parent[id])
+		return parent[id]
+	}
+
+	union := func(idA, idB int) {
+		setA := find(idA)
+		setB := find(idB)
+		if setA != setB {
+			parent[setB] = setA
+		}
+	}
+
+	for _, edge := range edges {
+		otherRow := edge.row + rowOffset[edge.d]
+		otherCol := edge.col + colOffset[edge.d]
+		setA := find(g.CellId(edge.row, edge.col))
+		setB := find(g.CellId(otherRow, otherCol))
+		if setA != setB {
+			g.data[edge.row][edge.col] |= int(edge.d)
+			g.data[otherRow][otherCol] |= int(opposite[edge.d])
+			union(setA, setB)
+		}
+	}
 }
 
 func (g *Grid) Print() {
@@ -94,6 +176,7 @@ func (g *Grid) Print() {
 func main() {
 	rand.Seed(time.Now().UnixNano())
 	grid := NewGrid(10, 10)
-	grid.MazifyRec(0, 0)
+	// grid.MazifyRec(0, 0)
+	grid.MazifyKruskal()
 	grid.Print()
 }
